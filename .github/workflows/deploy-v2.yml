@@ -456,6 +456,48 @@ jobs:
             fi
           fi
 
+      - name: Grant Owner Role on Existing AI Foundry Resource
+        if: env.EXP == 'true'
+        run: |
+          set -e
+          echo "🔐 Granting Owner role on existing AI Foundry resource..."
+          
+          # Determine which AI Project Resource ID to use
+          if [[ -n "${{ github.event.inputs.AZURE_EXISTING_AI_PROJECT_RESOURCE_ID }}" ]]; then
+            AI_PROJECT_RESOURCE_ID="${{ github.event.inputs.AZURE_EXISTING_AI_PROJECT_RESOURCE_ID }}"
+          else
+            AI_PROJECT_RESOURCE_ID="${{ secrets.AZURE_ENV_FOUNDRY_PROJECT_ID }}"
+          fi
+          
+          if [[ -z "$AI_PROJECT_RESOURCE_ID" ]]; then
+            echo "⚠️ No AI Project Resource ID provided, skipping role assignment"
+            exit 0
+          fi
+          
+          echo "AI Project Resource ID: $AI_PROJECT_RESOURCE_ID"
+          echo "Service Principal ID: ${{ secrets.AZURE_CLIENT_ID }}"
+          
+          # Check if role assignment already exists
+          EXISTING_ROLE=$(az role assignment list \
+            --assignee ${{ secrets.AZURE_CLIENT_ID }} \
+            --scope "$AI_PROJECT_RESOURCE_ID" \
+            --role "Owner" \
+            --query "[0].id" -o tsv 2>/dev/null || echo "")
+          
+          if [[ -n "$EXISTING_ROLE" ]]; then
+            echo "✅ Owner role already assigned to service principal on AI Foundry resource"
+          else
+            echo "📝 Assigning Owner role to service principal..."
+            az role assignment create \
+              --assignee ${{ secrets.AZURE_CLIENT_ID }} \
+              --role "Owner" \
+              --scope "$AI_PROJECT_RESOURCE_ID"
+            
+            echo "✅ Successfully granted Owner role on AI Foundry resource"
+            echo "⏳ Waiting 30 seconds for role assignment to propagate..."
+            sleep 30
+          fi
+
       - name: Deploy using azd up and extract values (${{ github.event.inputs.waf_enabled == 'true' && 'WAF' || 'Non-WAF' }}+${{ (github.event.inputs.EXP == 'true' || github.event.inputs.AZURE_ENV_LOG_ANALYTICS_WORKSPACE_ID != '' || github.event.inputs.AZURE_EXISTING_AI_PROJECT_RESOURCE_ID != '') && 'EXP' || 'Non-EXP' }})
         id: get_output
         run: |
