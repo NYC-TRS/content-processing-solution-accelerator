@@ -279,7 +279,7 @@ jobs:
       - name: Setup Azure CLI
         shell: bash
         run: |
-          curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+          # Azure CLI is pre-installed on Windows runners
           az --version  # Verify installation
 
       - name: Login to Azure
@@ -362,7 +362,7 @@ jobs:
       - name: Setup Azure Developer CLI
         shell: bash
         run: |
-          curl -fsSL https://aka.ms/install-azd.sh | sudo bash
+          curl -fsSL https://aka.ms/install-azd.sh | bash
           azd version           
 
       - name: Login to Azure
@@ -829,7 +829,7 @@ jobs:
       - name: Setup Azure Developer CLI
         shell: bash
         run: |
-          curl -fsSL https://aka.ms/install-azd.sh | sudo bash
+          curl -fsSL https://aka.ms/install-azd.sh | bash
           azd version
 
       - name: Login to Azure
@@ -841,7 +841,7 @@ jobs:
       - name: Setup Azure CLI for Docker cleanup
         shell: bash
         run: |
-          curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+          # Azure CLI is pre-installed on Windows runners
           az --version
 
       - name: Login to Azure CLI for Docker cleanup
