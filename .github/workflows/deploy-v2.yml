@@ -90,7 +90,7 @@ env:
 jobs:
   docker-build:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.build_docker_image == 'true'
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     outputs:
       IMAGE_TAG: ${{ steps.generate_docker_tag.outputs.IMAGE_TAG }}
     steps:
@@ -194,7 +194,7 @@ jobs:
   deploy:
     if: always() && (github.event_name != 'workflow_dispatch' || github.event.inputs.existing_webapp_url == '' || github.event.inputs.existing_webapp_url == null)
     needs: [docker-build]
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     outputs:
       invoice_schema_id: ${{ steps.register.outputs.invoice_schema_id }}
       propertydamageclaimform_schema_id: ${{ steps.register.outputs.propertylossdamageclaimform_schema_id }}
@@ -629,7 +629,7 @@ jobs:
   send-notification:
     if: always()
     needs: [docker-build, deploy, e2e-test]
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     env:
         accelerator_name: "Content Processing"
     steps:
@@ -781,7 +781,7 @@ jobs:
   cleanup-deployment:
     if: always() && needs.deploy.result == 'success' && needs.deploy.outputs.RESOURCE_GROUP_NAME != '' && github.event.inputs.existing_webapp_url == '' && (github.event_name != 'workflow_dispatch' || github.event.inputs.cleanup_resources == 'true' || github.event.inputs.cleanup_resources == null)
     needs: [docker-build, deploy, e2e-test]
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     env:
       RESOURCE_GROUP_NAME: ${{ needs.deploy.outputs.RESOURCE_GROUP_NAME }}
       AZURE_LOCATION: ${{ needs.deploy.outputs.AZURE_LOCATION }}
