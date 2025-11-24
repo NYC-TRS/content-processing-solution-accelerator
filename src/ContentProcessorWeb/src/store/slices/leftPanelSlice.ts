@@ -22,6 +22,7 @@ interface LeftPanelState {
 interface UploadMetadata {
     Metadata_Id: string;
     Schema_Id: string;
+    Folder?: string;
 }
 
 interface UploadFileResponse {
@@ -57,15 +58,22 @@ export const fetchSchemaData = createAsyncThunk<any, void>(
 
 export const fetchContentTableData = createAsyncThunk<
     any,
-    { pageSize: number; pageNumber: number }
+    { pageSize: number; pageNumber: number; schemaId?: string }
 >(
     '/contentprocessor/processed',
-    async ({ pageSize, pageNumber }, { rejectWithValue }) => {
+    async ({ pageSize, pageNumber, schemaId }, { rejectWithValue }) => {
+        const payload: any = {
+            page_size: pageSize,
+            page_number: pageNumber,
+        };
+
+        // Only include schema_id if it's provided
+        if (schemaId) {
+            payload.schema_id = schemaId;
+        }
+
         return handleApiThunk(
-            httpUtility.post<any>('/contentprocessor/processed', {
-                page_size: pageSize,
-                page_number: pageNumber,
-            }),
+            httpUtility.post<any>('/contentprocessor/processed', payload),
             rejectWithValue,
             'Failed to fetch content data.'
         );
@@ -97,15 +105,16 @@ export const deleteProcessedFile = createAsyncThunk<any, { processId: string | n
 
 export const uploadFile = createAsyncThunk<
     any, // Type for fulfilled response
-    { file: File; schema: string } // Type for the input payload
+    { file: File; schema: string; folder?: string | null } // Type for the input payload
 >(
     '/contentprocessor/submit',
-    async ({ file, schema }, { rejectWithValue }): Promise<any> => {
+    async ({ file, schema, folder }, { rejectWithValue }): Promise<any> => {
         const url = '/contentprocessor/submit';
 
         const metadata: UploadMetadata = {
             Metadata_Id: crypto.randomUUID(),
             Schema_Id: schema,
+            Folder: folder || undefined,
         };
 
         const formData = new FormData();

@@ -59,6 +59,14 @@ const columns = [
         },
     }),
     createTableColumn<Item>({
+        columnId: "folder",
+        compare: (a, b) => {
+            const folderA = a.folder.label || "";
+            const folderB = b.folder.label || "";
+            return folderA.localeCompare(folderB);
+        },
+    }),
+    createTableColumn<Item>({
         columnId: "processId",
         compare: (a, b) => {
             return a.processId.label.localeCompare(b.processId.label);
@@ -130,6 +138,12 @@ const ProcessQueueGrid: React.FC<GridComponentProps> = () => {
                     schemaScore: { label: item.schema_score.toString() },
                     processId: { label: item.process_id },
                     lastModifiedBy: { label: item.last_modified_by },
+                    confidence: {
+                        totalFields: item.confidence?.total_evaluated_fields_count || 0,
+                        zeroConfidenceCount: item.confidence?.zero_confidence_fields_count || 0,
+                        zeroConfidenceFields: item.confidence?.zero_confidence_fields || []
+                    },
+                    folder: { label: item.folder || null },
                 }));
                 setItems(items);
             } else {
@@ -260,9 +274,17 @@ const ProcessQueueGrid: React.FC<GridComponentProps> = () => {
                     <CustomCellRender type="percentage" props={{ valueText: item.entityScore.label, status: item.status.label }} />
                 </TableCell>
                 <TableCell className="col col6">
-                    <CustomCellRender type="schemaScore" props={{ valueText: item.schemaScore.label, lastModifiedBy: item.lastModifiedBy.label, status: item.status.label }} />
+                    <CustomCellRender type="schemaScore" props={{
+                        valueText: item.schemaScore.label,
+                        lastModifiedBy: item.lastModifiedBy.label,
+                        status: item.status.label,
+                        confidence: item.confidence
+                    }} />
                 </TableCell>
-                <TableCell className="col col7" onClick={onClickCellActions} onKeyDown={onKeyDownCellActions}>
+                <TableCell className="col col7">
+                    <CustomCellRender type="text" props={{ text: item.folder.label || "-" }} />
+                </TableCell>
+                <TableCell className="col col8" onClick={onClickCellActions} onKeyDown={onKeyDownCellActions}>
                     <CustomCellRender
                         type="deleteButton"
                         props={{
@@ -322,7 +344,8 @@ const ProcessQueueGrid: React.FC<GridComponentProps> = () => {
                             <TableHeaderCell className="col col4" {...headerSortProps("processTime")}>Process time</TableHeaderCell>
                             <TableHeaderCell className="col col5" {...headerSortProps("entityScore")}>Entity score</TableHeaderCell>
                             <TableHeaderCell className="col col6" {...headerSortProps("schemaScore")}>Schema score</TableHeaderCell>
-                            <TableHeaderCell className="col col7" ></TableHeaderCell>
+                            <TableHeaderCell className="col col7" {...headerSortProps("folder")}>Folder</TableHeaderCell>
+                            <TableHeaderCell className="col col8" ></TableHeaderCell>
                             {/* <div role="presentation" style={{ width: scrollbarWidth }} /> */}
                         </TableRow>
                     </TableHeader>

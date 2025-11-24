@@ -7,11 +7,13 @@ import {
   DialogActions,
 } from "@fluentui/react-dialog";
 import { Button } from "@fluentui/react-button";
-import { Field, ProgressBar, makeStyles } from "@fluentui/react-components";
+import { Field, ProgressBar, makeStyles, Combobox, Option } from "@fluentui/react-components";
 import { useDispatch, useSelector, shallowEqual } from "react-redux";
 import { fetchContentTableData, setRefreshGrid, uploadFile } from "../../store/slices/leftPanelSlice";
 import { AppDispatch, RootState } from "../../store";
 import "./UploadFilesModal.styles.scss";
+
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL as string;
 
 import { CheckmarkCircle16Filled, DismissCircle16Filled } from "@fluentui/react-icons";
 
@@ -52,7 +54,7 @@ interface UploadFilesModalProps {
   onClose: () => void;
 }
 
-const MAX_FILES = 10;
+const MAX_FILES = 100;
 
 interface FileError {
   message: string;
@@ -77,6 +79,8 @@ const UploadFilesModal: React.FC<UploadFilesModalProps> = ({ open, onClose }) =>
   const [fileErrors, setFileErrors] = useState<FileErrors>({});
   const [error, setError] = useState('');
   const [uploadCompleted, setUploadCompleted] = useState(false);
+  const [folder, setFolder] = useState<string>("");
+  const [folders, setFolders] = useState<string[]>([]);
 
 
   const intents: MessageBarIntent[] = ["warning"];
@@ -89,6 +93,22 @@ const UploadFilesModal: React.FC<UploadFilesModalProps> = ({ open, onClose }) =>
   const isFileDuplicate = (newFile: File) => {
     return files.some((file) => file.name === newFile.name);
   };
+
+  // Fetch folders when modal opens and schema is selected
+  useEffect(() => {
+    if (open && store.schemaSelectedOption?.Id) {
+      const fetchFolders = async () => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/contentprocessor/folders?schema_id=${store.schemaSelectedOption.Id}`);
+          const data = await response.json();
+          setFolders(data.folders || []);
+        } catch (error) {
+          console.error("Failed to fetch folders:", error);
+        }
+      };
+      fetchFolders();
+    }
+  }, [open, store.schemaSelectedOption]);
 
 
   // Handle file selection
@@ -166,13 +186,13 @@ const UploadFilesModal: React.FC<UploadFilesModalProps> = ({ open, onClose }) =>
     setUploading(true);
     let uploadCount = 0;
     try {
-      const schema = store.schemaSelectedOption?.optionValue ?? "defaultSchema";
+      const schema = store.schemaSelectedOption?.Id ?? "defaultSchema";
 
       for (const file of files) {
         setUploadProgress((prev) => ({ ...prev, [file.name]: 0 }));
 
         try {
-          await dispatch(uploadFile({ file, schema })).unwrap();
+          await dispatch(uploadFile({ file, schema, folder: folder || null })).unwrap();
           uploadCount++;
           setUploadProgress((prev) => ({ ...prev, [file.name]: 100 })); // Set progress to 100% after upload
         } catch (error: any) {
@@ -210,6 +230,8 @@ const UploadFilesModal: React.FC<UploadFilesModalProps> = ({ open, onClose }) =>
     setUploading(false);
     setFileErrors({})
     setUploadCompleted(false);
+    setFolder("");
+    setFolders([]);
   }
   const isSchemaSelectedOptionEmpty = !store.schemaSelectedOption || Object.keys(store.schemaSelectedOption).length === 0;
   const onCloseHandler = () => {
@@ -226,12 +248,28 @@ const UploadFilesModal: React.FC<UploadFilesModalProps> = ({ open, onClose }) =>
               {intents.map((intent) => (
                 <MessageBar key={intent} intent={intent}>
                   <MessageBarBody>
-                    <MessageBarTitle>Selected Schema  : {store.schemaSelectedOption.optionText} </MessageBarTitle>
-                    <br />Please upload files specific to "{store.schemaSelectedOption.optionText}"
+                    <MessageBarTitle>Selected Schema  : {store.schemaSelectedOption.Description} </MessageBarTitle>
+                    <br />Please upload files specific to "{store.schemaSelectedOption.Description}"
                   </MessageBarBody>
                 </MessageBar>
               ))}
             </div>
+            {/* Folder Selection */}
+            <Field label="Folder (optional)" style={{ marginBottom: "16px" }}>
+              <Combobox
+                placeholder="Select or type a folder name"
+                value={folder}
+                onOptionSelect={(_, data) => setFolder(data.optionText || "")}
+                onChange={(e) => setFolder(e.target.value)}
+                freeform
+              >
+                {folders.map((folderName) => (
+                  <Option key={folderName} value={folderName}>
+                    {folderName}
+                  </Option>
+                ))}
+              </Combobox>
+            </Field>
             {/* Drag & Drop Area with Centered Button & Message */}
             <div
               className={`drop-area ${dragging ? "dragging" : ""}`}

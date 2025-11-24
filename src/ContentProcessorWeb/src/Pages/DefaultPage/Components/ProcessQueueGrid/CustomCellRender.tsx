@@ -1,6 +1,6 @@
 import React from 'react';
 import { CaretUp16Filled, CaretDown16Filled, EditPersonFilled } from '@fluentui/react-icons';
-import { Button, Menu, MenuTrigger, MenuPopover, MenuList, MenuItem } from '@fluentui/react-components';
+import { Button, Menu, MenuTrigger, MenuPopover, MenuList, MenuItem, Tooltip } from '@fluentui/react-components';
 import { MoreVerticalRegular, MoreVerticalFilled, bundleIcon , Delete20Filled , Delete20Regular} from '@fluentui/react-icons';
 
 type CellRendererProps = {
@@ -21,7 +21,7 @@ const DeleteIcon = bundleIcon(
 const CellRenderer: React.FC<CellRendererProps> = ({ type, props }) => {
   // Destructure props based on type
   const {
-    txt, timeString, valueText, status, lastModifiedBy, text, item, deleteBtnStatus, setSelectedDeleteItem, toggleDialog,
+    txt, timeString, valueText, status, lastModifiedBy, text, item, deleteBtnStatus, setSelectedDeleteItem, toggleDialog, confidence,
   } = props || {};
 
   // Render for rounded button
@@ -82,7 +82,7 @@ const CellRenderer: React.FC<CellRendererProps> = ({ type, props }) => {
   };
 
   // Render for schema score
-  const calculateSchemaScore = (valueText: string, lastModifiedBy: string, status: string) => {
+  const calculateSchemaScore = (valueText: string, lastModifiedBy: string, status: string, confidence: any) => {
     if (lastModifiedBy === 'user') {
       return (
         <div className="percentageContainer">
@@ -93,7 +93,55 @@ const CellRenderer: React.FC<CellRendererProps> = ({ type, props }) => {
         </div>
       );
     }
-    return renderPercentage(valueText, status);
+
+    const decimalValue = Number(valueText);
+    if (isNaN(decimalValue) || status !== 'Completed') {
+      return <div className="percentageContainer"><span className="textClass">...</span></div>;
+    }
+
+    const wholeValue = Math.round(decimalValue * 100);
+    let numberClass = '';
+
+    // Apply color based on value
+    if (wholeValue > 80) {
+      numberClass = 'gClass';
+    } else if (wholeValue >= 50 && wholeValue <= 80) {
+      numberClass = 'yClass';
+    } else if (wholeValue >= 30 && wholeValue < 50) {
+      numberClass = 'oClass';
+    } else {
+      numberClass = 'rClass';
+    }
+
+    // Calculate non-null fields
+    const totalFields = confidence?.totalFields || 0;
+    const zeroConfidenceCount = confidence?.zeroConfidenceCount || 0;
+    const nonNullFields = totalFields - zeroConfidenceCount;
+    const zeroConfidenceFields = confidence?.zeroConfidenceFields || [];
+
+    // Build tooltip content
+    const tooltipContent = zeroConfidenceFields.length > 0
+      ? `Fields with null/zero confidence:\n${zeroConfidenceFields.join(', ')}`
+      : 'All fields have confidence values';
+
+    return (
+      <Tooltip
+        content={tooltipContent}
+        relationship="description"
+        positioning="above"
+      >
+        <div className="percentageContainer">
+          <span className={numberClass}>
+            {wholeValue}% ({nonNullFields}/{totalFields})
+          </span>
+          {wholeValue > 50 ? (
+            <CaretUp16Filled className={numberClass} />
+          ) : (
+            <CaretDown16Filled className={numberClass} />
+          )}
+        </div>
+      </Tooltip>
+    );
   };
 
   // Render for text
@@ -146,7 +194,7 @@ const CellRenderer: React.FC<CellRendererProps> = ({ type, props }) => {
     case 'percentage':
       return renderPercentage(valueText || '', status || '');
     case 'schemaScore':
-      return calculateSchemaScore(valueText || '', lastModifiedBy || '', status || '');
+      return calculateSchemaScore(valueText || '', lastModifiedBy || '', status || '', confidence);
     case 'text':
       return renderText(text, 'center');
     case 'date':

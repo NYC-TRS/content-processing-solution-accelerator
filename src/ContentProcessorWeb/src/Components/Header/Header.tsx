@@ -104,8 +104,8 @@ const HeaderPage: React.FC<HeaderPageProps> = ({ toggleTheme, isDarkMode }) => {
   return (
     <Header
       avatarSrc={MainLogo} // Profile icon for businesses
-      title="Content Processing" // Site title
-      subtitle="Accelerator" // Optional subtitle
+      title="TRS Document Processing" // Site title
+      subtitle="" // Optional subtitle
       badge="" // Optional badge
     >
       <div className="headerNav">

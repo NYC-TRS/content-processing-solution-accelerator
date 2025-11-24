@@ -44,8 +44,14 @@ const ComboboxComponent = (props: Partial<ComboboxProps>) => {
   }, [store.schemaData]);
 
   const handleChange: (typeof props)["onOptionSelect"] = (ev, data) => {
-    const selectedItem = data.optionValue !=undefined ? data : {}
-    dispatch(setSchemaSelectedOption(selectedItem));
+    if (data.optionValue) {
+      // Find the full schema object from schemaData based on the selected ID
+      const selectedSchema = store.schemaData.find((item: SchemaItem) => item.Id === data.optionValue);
+      dispatch(setSchemaSelectedOption(selectedSchema || {}));
+    } else {
+      // If cleared, set to empty object
+      dispatch(setSchemaSelectedOption({}));
+    }
   };
 
   return (

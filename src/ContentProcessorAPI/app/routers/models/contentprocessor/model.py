@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field, model_validator
 class ContentProcessorRequest(BaseModel):
     Metadata_Id: str
     Schema_Id: str
+    Folder: Optional[str] = None
 
     @model_validator(mode="before")
     @classmethod
@@ -58,6 +59,8 @@ class ProcessFile(BaseModel):
 class Paging(BaseModel):
     page_number: int = Field(default=0, gt=0)
     page_size: int = Field(default=0, gt=0)
+    schema_id: str | None = Field(default=None, description="Optional schema ID to filter results")
+    folder: str | None = Field(default=None, description="Optional folder name to filter results")
 
 
 class ContentResultUpdate(BaseModel):

@@ -11,6 +11,12 @@ export interface Item {
     processId: { label: string };
     lastModifiedBy: { label: string };
     file_mime_type: { label: string };
+    confidence: {
+        totalFields: number;
+        zeroConfidenceCount: number;
+        zeroConfidenceFields: string[];
+    };
+    folder: { label: string | null };
 }
 
 export interface TableRowData extends RowStateBase<Item> {

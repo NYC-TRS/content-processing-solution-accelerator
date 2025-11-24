@@ -76,6 +76,7 @@ class ContentProcess(BaseModel):
     extracted_comparison_data: Optional[ExtractionComparisonData] = None
 
     comment: Optional[str] = None
+    folder: Optional[str] = None
 
     def update_process_status_to_cosmos(
         self,
@@ -294,9 +295,23 @@ class ContentProcess(BaseModel):
         collection_name: str,
         page_size: int = 0,
         page_number: int = 0,
+        schema_id: str | None = None,
+        folder: str | None = None,
     ) -> PaginatedResponse:
         """
-        Get all processes from Cosmos DB.
+        Get all processes from Cosmos DB with optional schema and folder filtering.
+
+        Args:
+            connection_string: Cosmos DB connection string
+            database_name: Database name
+            collection_name: Collection name
+            page_size: Number of items per page
+            page_number: Page number (1-based)
+            schema_id: Optional UUID string to filter by schema
+            folder: Optional folder name to filter by
+
+        Returns:
+            PaginatedResponse with filtered results
         """
         # Check if the process_id is already in the database
         mongo_helper = CosmosMongDBHelper(
@@ -306,12 +321,19 @@ class ContentProcess(BaseModel):
             indexes=[("process_id", 1), ("imported_time", -1)],
         )
 
-        total_count = mongo_helper.count_documents()
+        # Build query filter
+        query = {}
+        if schema_id:
+            query["target_schema.Id"] = schema_id
+        if folder is not None:
+            query["folder"] = folder
+
+        total_count = mongo_helper.count_documents(query=query)
         total_pages = (total_count + page_size - 1) // page_size if page_size > 0 else 1
 
         # Check if the process_id already exists in the database
         items = mongo_helper.find_document(
-            query={},
+            query=query,
             sort_fields=[("imported_time", -1)],
             skip=(page_number - 1) * page_size,
             limit=page_size,
@@ -329,6 +351,8 @@ class ContentProcess(BaseModel):
                 "schema_score",
                 "prompt_tokens",
                 "completion_tokens",
+                "confidence",
+                "folder",
             ],
         )
 

@@ -11,8 +11,10 @@ import { startLoader, stopLoader } from "../../store/slices/loaderSlice.ts";
 import { fetchContentJsonData, setActiveProcessId } from '../../store/slices/centerPanelSlice';
 import ProcessSteps from './Components/ProcessSteps/ProcessSteps';
 import { setRefreshGrid } from "../../store/slices/leftPanelSlice.ts";
+import { exportDetailedResultsToExcel } from '../../utils/excelExport';
+import { toast } from "react-toastify";
 
-import { bundleIcon, ChevronDoubleLeft20Filled, ChevronDoubleLeft20Regular } from "@fluentui/react-icons";
+import { bundleIcon, ChevronDoubleLeft20Filled, ChevronDoubleLeft20Regular, ArrowDownloadRegular } from "@fluentui/react-icons";
 const ChevronDoubleLeft = bundleIcon(ChevronDoubleLeft20Regular, ChevronDoubleLeft20Filled);
 interface PanelCenterProps {
   togglePanel: (panel: string) => void;
@@ -177,6 +179,20 @@ const PanelCenter: React.FC<PanelCenterProps> = ({ togglePanel }) => {
     }
   }
 
+  const handleExportResults = () => {
+    if (!store.contentData?.result) {
+      toast.warning("No extraction results available to export");
+      return;
+    }
+
+    const fileName = store.selectedItem?.processed_file_name
+      ? `${store.selectedItem.processed_file_name.replace(/\.[^/.]+$/, '')}_Results.xlsx`
+      : `ExtractedResults_${store.activeProcessId}.xlsx`;
+
+    exportDetailedResultsToExcel(store.contentData.result, fileName);
+    toast.success("Exported extraction results to Excel");
+  }
+
   const IsButtonSaveDisalbedCheck = () => {
     if(!store.activeProcessId) return true;
     if (status.includes(store.selectedItem.status)) return true;
@@ -213,6 +229,14 @@ const PanelCenter: React.FC<PanelCenterProps> = ({ togglePanel }) => {
             </Field>
             <div className="saveBtnDiv">
               {store.isSavingInProgress && <b className="msgp">Please wait data saving....</b>}
+              <Button
+                appearance="outline"
+                className={styles.saveButton}
+                onClick={handleExportResults}
+                icon={<ArrowDownloadRegular />}
+                disabled={!store.contentData?.result || status.includes(store.selectedItem.status)}>
+                Export Results
+              </Button>
               <Button
                 appearance="primary"
                 className={styles.saveButton}

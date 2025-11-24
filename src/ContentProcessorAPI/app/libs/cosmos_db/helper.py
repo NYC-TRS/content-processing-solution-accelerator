@@ -106,3 +106,18 @@ class CosmosMongDBHelper:
         field_name = field_name or "Id"  # Use "Id" if field_name is empty or None
         result = self.container.delete_one({field_name: item_id})
         return result
+
+    def get_distinct_values(self, field: str, query: Dict[str, Any] = None) -> List[Any]:
+        """
+        Get distinct values for a field with optional query filter.
+
+        Args:
+            field: The field name to get distinct values for
+            query: Optional query filter
+
+        Returns:
+            List of distinct values
+        """
+        if query is None:
+            query = {}
+        return self.container.distinct(field, query)

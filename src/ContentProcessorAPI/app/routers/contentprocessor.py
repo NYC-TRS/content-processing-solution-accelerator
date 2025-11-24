@@ -47,7 +47,7 @@ router = APIRouter(
     response_model=PaginatedResponse,
     summary="Get all processed contents list",
     description="""
-    Returns a list of all processed contents with pagination support.
+    Returns a list of all processed contents with pagination support and optional schema filtering.
 
     ## Parameters
     The parameter for pagination is passed in the request body as JSON.
@@ -55,16 +55,19 @@ router = APIRouter(
     class Paging(BaseModel):
         page_number: int = Field(default=0, gt=0)
         page_size: int = Field(default=0, gt=0)
+        schema_id: str | None = Field(default=None)
 
     The request body should contain the following fields:
     * **page_number** : The page number to retrieve (1-based index).
     * **page_size** : The number of items per page.
+    * **schema_id** : Optional UUID string to filter results by schema.
     * **page_number** and **page_size** are both required and must be greater than 0.
 
     ## Example Request Body
     {
         "page_number": 1,
-        "page_size": 10
+        "page_size": 10,
+        "schema_id": "550e8400-e29b-41d4-a716-446655440000"
     }
     """,
 )
@@ -79,6 +82,8 @@ async def get_all_processed_results(
         collection_name=app_config.app_cosmos_container_process,
         page_number=page_request.page_number if page_request else 0,
         page_size=page_request.page_size if page_request else 0,
+        schema_id=page_request.schema_id if page_request else None,
+        folder=page_request.folder if page_request else None,
     )
 
     return paged_cosmos_content_process
@@ -197,6 +202,7 @@ async def Submit_File_With_MetaData(
         processed_file_name=file.filename,
         status="processing",
         imported_time=datetime.datetime.now(datetime.timezone.utc),
+        folder=data.Folder,
     ).update_process_status_to_cosmos(
         connection_string=content_processor.config.app_cosmos_connstr,
         database_name=content_processor.config.app_cosmos_database,
@@ -491,6 +497,97 @@ async def get_original_file(
         return StreamingResponse(
             file_stream, media_type=content_type_string, headers=headers
         )
+
+
+@router.get(
+    "/folders",
+    summary="Get all unique folders for optional schema filtering",
+    description="""
+            Returns a list of all unique folder names in the system.
+            Optionally filter by schema_id to get folders for a specific schema.
+
+            Query parameters:
+            - schema_id (optional): Filter folders by schema ID
+            """,
+)
+async def get_folders(
+    schema_id: str | None = None,
+    app_config: AppConfiguration = Depends(get_app_config),
+):
+    mongo_helper = CosmosMongDBHelper(
+        connection_string=app_config.app_cosmos_connstr,
+        db_name=app_config.app_cosmos_database,
+        container_name=app_config.app_cosmos_container_process,
+        indexes=[("process_id", 1)],
+    )
+
+    # Build query filter
+    query = {}
+    if schema_id:
+        query["target_schema.Id"] = schema_id
+
+    # Get distinct folder values
+    folders = mongo_helper.get_distinct_values("folder", query=query)
+
+    # Filter out None values and return
+    folders = [f for f in folders if f is not None]
+
+    return JSONResponse(
+        status_code=200,
+        content={"folders": folders},
+    )
+
+
+@router.put(
+    "/processed/{process_id}/folder",
+    summary="Update the folder for a processed file",
+    description="""
+            Updates the folder assignment for a processed file.
+            Set folder to null or empty string to remove folder assignment.
+            """,
+)
+async def update_process_folder(
+    process_id: str,
+    folder: str | None = Body(None),
+    app_config: AppConfiguration = Depends(get_app_config),
+):
+    mongo_helper = CosmosMongDBHelper(
+        connection_string=app_config.app_cosmos_connstr,
+        db_name=app_config.app_cosmos_database,
+        container_name=app_config.app_cosmos_container_process,
+        indexes=[("process_id", 1)],
+    )
+
+    # Check if process exists
+    existing_process = mongo_helper.find_document(query={"process_id": process_id})
+
+    if not existing_process:
+        return JSONResponse(
+            status_code=404,
+            content={
+                "status": "failed",
+                "message": f"Process with ID '{process_id}' not found.",
+            },
+        )
+
+    # Update folder
+    mongo_helper.update_document_by_query(
+        {"process_id": process_id},
+        {
+            "folder": folder,
+            "last_modified_time": datetime.datetime.now(datetime.UTC),
+            "last_modified_by": "user",
+        },
+    )
+
+    return JSONResponse(
+        status_code=200,
+        content={
+            "status": "success",
+            "message": f"Folder updated successfully for process '{process_id}'.",
+            "folder": folder,
+        },
+    )
 
 
 @router.delete(
