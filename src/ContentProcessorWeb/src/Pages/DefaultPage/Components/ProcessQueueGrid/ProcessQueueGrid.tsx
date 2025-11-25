@@ -251,11 +251,19 @@ const ProcessQueueGrid: React.FC<GridComponentProps> = () => {
         return {
             ...row,
             onClick: (e: React.MouseEvent) => {
-                // Don't trigger selection on row click - only for review purposes
-                // Selection only happens via checkbox
+                const target = e.target as HTMLElement;
+                // Only trigger selection if clicking on checkbox
+                const isCheckbox = target.closest('[role="checkbox"]');
+                if (isCheckbox && !e.defaultPrevented) {
+                    toggleRow(e, row.rowId);
+                }
+                // Otherwise row click is handled by handleRowClick for review
             },
             onKeyDown: (e: React.KeyboardEvent) => {
-                // Don't trigger selection on keyboard - only via checkbox
+                if (e.key === " " && !e.defaultPrevented) {
+                    e.preventDefault();
+                    toggleRow(e, row.rowId);
+                }
             },
             selected,
             appearance: selected ? "brand" : "none",
