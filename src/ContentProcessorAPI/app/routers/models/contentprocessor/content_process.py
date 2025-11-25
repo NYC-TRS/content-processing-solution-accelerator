@@ -353,6 +353,7 @@ class ContentProcess(BaseModel):
                 "completion_tokens",
                 "result",
                 "confidence",
+                "extracted_comparison_data",
                 "folder",
             ],
         )
@@ -361,11 +362,16 @@ class ContentProcess(BaseModel):
         for item in items:
             stored_confidence = item.get("confidence", {})
 
+            # Get total schema fields from extracted_comparison_data
+            comparison_data = item.get("extracted_comparison_data", {})
+            comparison_items = comparison_data.get("items", []) if comparison_data else []
+            total_schema_fields = len(comparison_items)
+
             # Use stored confidence data if available (from processing pipeline)
             if stored_confidence and isinstance(stored_confidence, dict):
                 # Map stored field names to frontend's expected camelCase format
                 item["confidence"] = {
-                    "totalFields": stored_confidence.get("total_evaluated_fields_count", 0),
+                    "totalFields": total_schema_fields,  # Use comparison_data items count, not total_evaluated_fields_count
                     "zeroConfidenceCount": stored_confidence.get("zero_confidence_fields_count", 0),
                     "zeroConfidenceFields": stored_confidence.get("zero_confidence_fields", [])
                 }
@@ -373,7 +379,6 @@ class ContentProcess(BaseModel):
                 # Fallback: Calculate confidence from result field for legacy data
                 # This handles items processed before confidence tracking was implemented
                 extracted_result = item.get("result", {})
-                total_fields = 0
                 zero_confidence_fields = 0
                 zero_confidence_field_names = []
 
@@ -388,20 +393,24 @@ class ContentProcess(BaseModel):
                     for key, value in extracted_result.items():
                         if key.startswith("_"):  # Skip internal fields
                             continue
-                        total_fields += 1
                         if value is None or value == "" or value == "NULL":
                             zero_confidence_fields += 1
                             zero_confidence_field_names.append(key)
 
+                # Use total_schema_fields from comparison_data if available, otherwise use result field count
+                fallback_total = total_schema_fields if total_schema_fields > 0 else len([k for k in extracted_result.keys() if not k.startswith("_")]) if isinstance(extracted_result, dict) else 0
+
                 item["confidence"] = {
-                    "totalFields": total_fields,
+                    "totalFields": fallback_total,
                     "zeroConfidenceCount": zero_confidence_fields,
                     "zeroConfidenceFields": zero_confidence_field_names
                 }
 
-            # Remove result from response to keep it clean
+            # Remove result and extracted_comparison_data from response to keep it clean
             if "result" in item:
                 del item["result"]
+            if "extracted_comparison_data" in item:
+                del item["extracted_comparison_data"]
 
         if items:
             return PaginatedResponse(
