@@ -351,10 +351,35 @@ class ContentProcess(BaseModel):
                 "schema_score",
                 "prompt_tokens",
                 "completion_tokens",
-                "confidence",
+                "extracted_result",
                 "folder",
             ],
         )
+
+        # Calculate confidence for each item
+        for item in items:
+            extracted_result = item.get("extracted_result", {})
+            total_fields = 0
+            zero_confidence_fields = 0
+            zero_confidence_field_names = []
+
+            if isinstance(extracted_result, dict):
+                for key, value in extracted_result.items():
+                    if key.startswith("_"):  # Skip internal fields
+                        continue
+                    total_fields += 1
+                    if value is None or value == "" or value == "NULL":
+                        zero_confidence_fields += 1
+                        zero_confidence_field_names.append(key)
+
+            item["confidence"] = {
+                "total_evaluated_fields_count": total_fields,
+                "zero_confidence_fields_count": zero_confidence_fields,
+                "zero_confidence_fields": zero_confidence_field_names
+            }
+            # Remove extracted_result from response to keep it clean
+            if "extracted_result" in item:
+                del item["extracted_result"]
 
         if items:
             return PaginatedResponse(

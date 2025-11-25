@@ -5,7 +5,7 @@ export interface Item {
     fileName: { label: string; icon: JSX.Element };
     imported: { label: string };
     status: { label: string };
-    processTime: { label: string };
+    processTime?: { label: string }; // Made optional - commented out in UI
     entityScore: { label: string };
     schemaScore: { label: string };
     processId: { label: string };

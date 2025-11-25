@@ -617,3 +617,65 @@ async def delete_processed_file(
         process_id=deleted_file.process_id if deleted_file else "",
         message="" if deleted_file else "This record no longer exists. Please refresh."
     )
+
+
+@router.delete(
+    "/processed/bulk",
+    summary="Bulk delete processed content results",
+    description="""
+            Deletes multiple processed content records by their process IDs.
+            Returns a summary of successful and failed deletions.
+            """,
+)
+async def bulk_delete_processed_files(
+    process_ids: list[str] = Body(..., description="List of process IDs to delete"),
+    app_config: AppConfiguration = Depends(get_app_config)
+) -> dict:
+    """
+    Bulk delete multiple processed files.
+
+    Args:
+        process_ids: List of process IDs to delete
+        app_config: Application configuration
+
+    Returns:
+        Dictionary with deletion results including success count, failed count, and details
+    """
+    if not process_ids:
+        raise HTTPException(status_code=400, detail="No process IDs provided")
+
+    results = {
+        "total": len(process_ids),
+        "successful": 0,
+        "failed": 0,
+        "errors": []
+    }
+
+    for process_id in process_ids:
+        try:
+            deleted_file = CosmosContentProcess(process_id=process_id).delete_processed_file(
+                connection_string=app_config.app_cosmos_connstr,
+                database_name=app_config.app_cosmos_database,
+                collection_name=app_config.app_cosmos_container_process,
+                storage_connection_string=app_config.app_storage_blob_url,
+                container_name=app_config.app_cps_processes,
+            )
+            if deleted_file:
+                results["successful"] += 1
+            else:
+                results["failed"] += 1
+                results["errors"].append({
+                    "process_id": process_id,
+                    "message": "Record no longer exists"
+                })
+        except Exception as e:
+            results["failed"] += 1
+            results["errors"].append({
+                "process_id": process_id,
+                "message": str(e)
+            })
+
+    return JSONResponse(
+        status_code=200,
+        content=results
+    )

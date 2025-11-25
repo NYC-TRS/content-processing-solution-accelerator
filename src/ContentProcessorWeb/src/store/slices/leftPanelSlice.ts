@@ -102,6 +102,32 @@ export const deleteProcessedFile = createAsyncThunk<any, { processId: string | n
     }
 );
 
+interface BulkDeleteResponse {
+    total: number;
+    successful: number;
+    failed: number;
+    errors: Array<{ process_id: string; message: string }>;
+}
+
+export const bulkDeleteProcessedFiles = createAsyncThunk<
+    BulkDeleteResponse,
+    { processIds: string[] }
+>(
+    '/contentprocessor/bulkDeleteProcessedFiles/',
+    async ({ processIds }, { rejectWithValue }) => {
+        if (!processIds || processIds.length === 0) {
+            return rejectWithValue('No process IDs provided');
+        }
+
+        const url = '/contentprocessor/processed/bulk';
+        return handleApiThunk(
+            httpUtility.delete<BulkDeleteResponse>(url, processIds),
+            rejectWithValue,
+            'Failed to bulk delete processed files'
+        );
+    }
+);
+
 
 export const uploadFile = createAsyncThunk<
     any, // Type for fulfilled response
@@ -255,6 +281,40 @@ const leftPanelSlice = createSlice({
                     state.deleteFilesLoader = state.deleteFilesLoader.filter(id => id !== processId);
                     toast.error("Failed to delete the file. Please try again.")
                 }
+            });
+
+        // Bulk Delete
+        builder
+            .addCase(bulkDeleteProcessedFiles.pending, (state, action) => {
+                const processIds = action.meta.arg.processIds;
+                if (processIds) {
+                    state.deleteFilesLoader = [...state.deleteFilesLoader, ...processIds];
+                }
+            })
+            .addCase(bulkDeleteProcessedFiles.fulfilled, (state, action) => {
+                const processIds = action.meta.arg.processIds;
+                if (processIds) {
+                    state.deleteFilesLoader = state.deleteFilesLoader.filter(
+                        id => !processIds.includes(id)
+                    );
+                }
+                const result = action.payload;
+                if (result.successful > 0) {
+                    toast.success(`Successfully deleted ${result.successful} file(s).`);
+                    state.isGridRefresh = true;
+                }
+                if (result.failed > 0) {
+                    toast.error(`Failed to delete ${result.failed} file(s).`);
+                }
+            })
+            .addCase(bulkDeleteProcessedFiles.rejected, (state, action) => {
+                const processIds = action.meta.arg.processIds;
+                if (processIds) {
+                    state.deleteFilesLoader = state.deleteFilesLoader.filter(
+                        id => !processIds.includes(id)
+                    );
+                }
+                toast.error("Failed to bulk delete files. Please try again.");
             });
     },
 });
