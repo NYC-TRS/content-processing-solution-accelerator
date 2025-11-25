@@ -141,9 +141,9 @@ const ProcessQueueGrid: React.FC<GridComponentProps> = () => {
                     processId: { label: item.process_id },
                     lastModifiedBy: { label: item.last_modified_by },
                     confidence: {
-                        totalFields: item.confidence?.total_evaluated_fields_count || 0,
-                        zeroConfidenceCount: item.confidence?.zero_confidence_fields_count || 0,
-                        zeroConfidenceFields: item.confidence?.zero_confidence_fields || []
+                        totalFields: item.confidence?.totalFields || 0,
+                        zeroConfidenceCount: item.confidence?.zeroConfidenceCount || 0,
+                        zeroConfidenceFields: item.confidence?.zeroConfidenceFields || []
                     },
                     folder: { label: item.folder || null },
                 }));
