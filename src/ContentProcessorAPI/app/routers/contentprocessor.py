@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pymongo.results import UpdateResult
 
 from app.appsettings import AppConfiguration, get_app_config
+from app.libs.cosmos_db.helper import CosmosMongDBHelper
 from app.routers.logics.contentprocessor import (
     ContentProcessor,
     get_content_processor,
