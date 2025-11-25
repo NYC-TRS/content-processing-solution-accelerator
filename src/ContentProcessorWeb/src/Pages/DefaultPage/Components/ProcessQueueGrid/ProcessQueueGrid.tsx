@@ -274,7 +274,7 @@ const ProcessQueueGrid: React.FC<GridComponentProps> = () => {
     };
 
     const RenderRow = ({ index, style, data }: ReactWindowRenderFnProps) => {
-        const { item, selected, appearance, onClick, onKeyDown } = data[index];
+        const { item, selected, appearance } = data[index];
         const deleteBtnStatus = isDeleteDisabled(item.processId.label, item.status.label);
 
         // Handle row click - set selected row for review (not for deletion)
