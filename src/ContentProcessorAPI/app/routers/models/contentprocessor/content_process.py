@@ -363,6 +363,14 @@ class ContentProcess(BaseModel):
             zero_confidence_fields = 0
             zero_confidence_field_names = []
 
+            # Handle both dict and JSON string formats
+            if isinstance(extracted_result, str):
+                try:
+                    import json
+                    extracted_result = json.loads(extracted_result)
+                except Exception:
+                    extracted_result = {}
+
             if isinstance(extracted_result, dict):
                 for key, value in extracted_result.items():
                     if key.startswith("_"):  # Skip internal fields
