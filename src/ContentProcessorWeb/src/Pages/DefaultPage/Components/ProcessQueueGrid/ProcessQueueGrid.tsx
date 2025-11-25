@@ -251,15 +251,11 @@ const ProcessQueueGrid: React.FC<GridComponentProps> = () => {
         return {
             ...row,
             onClick: (e: React.MouseEvent) => {
-                if (!e.defaultPrevented) {
-                    toggleRow(e, row.rowId);
-                }
+                // Don't trigger selection on row click - only for review purposes
+                // Selection only happens via checkbox
             },
             onKeyDown: (e: React.KeyboardEvent) => {
-                if (e.key === " " && !e.defaultPrevented) {
-                    e.preventDefault();
-                    toggleRow(e, row.rowId);
-                }
+                // Don't trigger selection on keyboard - only via checkbox
             },
             selected,
             appearance: selected ? "brand" : "none",
@@ -281,10 +277,10 @@ const ProcessQueueGrid: React.FC<GridComponentProps> = () => {
         const { item, selected, appearance, onClick, onKeyDown } = data[index];
         const deleteBtnStatus = isDeleteDisabled(item.processId.label, item.status.label);
 
-        // Handle row click - exclude clicks on interactive elements
+        // Handle row click - set selected row for review (not for deletion)
         const handleRowClick = (e: React.MouseEvent) => {
             const target = e.target as HTMLElement;
-            // Don't toggle if clicking on checkbox, buttons, or menu items
+            // Don't handle clicks on checkbox, buttons, or menu items
             const isInteractiveElement =
                 target.closest('[role="checkbox"]') ||
                 target.closest('button') ||
@@ -292,7 +288,9 @@ const ProcessQueueGrid: React.FC<GridComponentProps> = () => {
                 target.closest('[role="menu"]');
 
             if (!isInteractiveElement && !e.defaultPrevented) {
-                onClick(e);
+                // Set this row as selected for review purposes only
+                const findItem = getSelectedItem(item.processId.label);
+                dispatch(setSelectedGridRow({ processId: item.processId.label, item: findItem }));
             }
         };
 
