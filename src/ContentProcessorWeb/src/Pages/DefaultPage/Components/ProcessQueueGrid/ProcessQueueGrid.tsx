@@ -299,7 +299,6 @@ const ProcessQueueGrid: React.FC<GridComponentProps> = () => {
                 aria-rowindex={index + 2}
                 style={style}
                 key={item.processId.label}
-                onKeyDown={onKeyDown}
                 aria-selected={selected}
                 onClick={handleRowClick}
                 appearance={appearance}
