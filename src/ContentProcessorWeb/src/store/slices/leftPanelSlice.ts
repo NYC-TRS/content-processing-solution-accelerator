@@ -17,6 +17,11 @@ interface LeftPanelState {
     deleteFilesLoader: string[],
     isGridRefresh: boolean;
     swaggerJSON: any;
+    folderFilter: {
+        selectedFolders: string[];
+        availableFolders: string[];
+        isLoading: boolean;
+    };
 }
 
 interface UploadMetadata {
@@ -39,6 +44,24 @@ export const fetchSwaggerData = createAsyncThunk<any, void>(
             httpUtility.get<any>('/openapi.json'),
             rejectWithValue,
             'Failed to fetch Swagger data'
+        );
+    }
+);
+
+export const fetchFolders = createAsyncThunk<
+    string[],
+    { schemaId?: string }
+>(
+    '/contentprocessor/folders',
+    async ({ schemaId }, { rejectWithValue }) => {
+        const url = schemaId
+            ? `/contentprocessor/folders?schema_id=${schemaId}`
+            : '/contentprocessor/folders';
+
+        return handleApiThunk(
+            httpUtility.get<{ folders: string[] }>(url).then(response => response.folders || []),
+            rejectWithValue,
+            'Failed to fetch folders'
         );
     }
 );
@@ -175,7 +198,13 @@ const initialState: LeftPanelState = {
     pageSize: 500,
 
     deleteFilesLoader: [],
-    swaggerJSON: null
+    swaggerJSON: null,
+
+    folderFilter: {
+        selectedFolders: [],
+        availableFolders: [],
+        isLoading: false,
+    },
 };
 
 const leftPanelSlice = createSlice({
@@ -191,6 +220,12 @@ const leftPanelSlice = createSlice({
         },
         setRefreshGrid: (state, action) => {
             state.isGridRefresh = action.payload;
+        },
+        setFolderFilter: (state, action: PayloadAction<string[]>) => {
+            state.folderFilter.selectedFolders = action.payload;
+        },
+        clearFolderFilter: (state) => {
+            state.folderFilter.selectedFolders = [];
         },
     },
     extraReducers: (builder) => {
@@ -315,9 +350,22 @@ const leftPanelSlice = createSlice({
                     );
                 }
                 toast.error("Failed to bulk delete files. Please try again.");
+            })
+
+            // Fetch folders
+            .addCase(fetchFolders.pending, (state) => {
+                state.folderFilter.isLoading = true;
+            })
+            .addCase(fetchFolders.fulfilled, (state, action: PayloadAction<string[]>) => {
+                state.folderFilter.isLoading = false;
+                state.folderFilter.availableFolders = action.payload;
+            })
+            .addCase(fetchFolders.rejected, (state) => {
+                state.folderFilter.isLoading = false;
+                toast.error("Failed to load folders");
             });
     },
 });
 
-export const { setSchemaSelectedOption, setSelectedGridRow, setRefreshGrid } = leftPanelSlice.actions;
+export const { setSchemaSelectedOption, setSelectedGridRow, setRefreshGrid, setFolderFilter, clearFolderFilter } = leftPanelSlice.actions;
 export default leftPanelSlice.reducer;

@@ -16,7 +16,7 @@ import { RootState, AppDispatch } from '../../../../store';
 import { setSelectedGridRow, deleteProcessedFile, bulkDeleteProcessedFiles } from '../../../../store/slices/leftPanelSlice';
 import useFileType from "../../../../Hooks/useFileType";
 import { Confirmation } from "../../../../Components/DialogComponent/DialogComponent.tsx";
-import { Item, TableRowData, ReactWindowRenderFnProps, GridComponentProps } from './ProcessQueueGridTypes.ts';
+import { Item, TableRowData, ReactWindowRenderFnProps, GridComponentProps, ProcessedFileResponse } from './ProcessQueueGridTypes.ts';
 
 const columns = [
     createTableColumn<Item>({
@@ -99,7 +99,12 @@ const ProcessQueueGrid: React.FC<GridComponentProps> = () => {
     });
 
     const [items, setItems] = useState<Item[]>([]); // State to store fetched items
+    const [filteredItems, setFilteredItems] = useState<Item[]>([]); // State for filtered items
     const { fileType, getMimeType } = useFileType(null);
+
+    const folderFilter = useSelector((state: RootState) =>
+        state.leftPanel.folderFilter.selectedFolders
+    );
 
     const [selectedRows, setSelectedRows] = React.useState(
         () => new Set<TableRowId>()
@@ -128,7 +133,7 @@ const ProcessQueueGrid: React.FC<GridComponentProps> = () => {
         }
         if (!store.gridLoader) {
             if (store.gridData.items.length > 0) {
-                const items = store.gridData.items.map((item: any) => ({
+                const items = store.gridData.items.map((item: ProcessedFileResponse) => ({
                     fileName: {
                         label: item.processed_file_name,
                         icon: getFIleImage(item.processed_file_mime_type, item.processed_file_name)
@@ -140,6 +145,7 @@ const ProcessQueueGrid: React.FC<GridComponentProps> = () => {
                     schemaScore: { label: item.schema_score.toString() },
                     processId: { label: item.process_id },
                     lastModifiedBy: { label: item.last_modified_by },
+                    file_mime_type: { label: item.processed_file_mime_type || '' },
                     confidence: {
                         totalFields: item.confidence?.totalFields || 0,
                         zeroConfidenceCount: item.confidence?.zeroConfidenceCount || 0,
@@ -155,6 +161,35 @@ const ProcessQueueGrid: React.FC<GridComponentProps> = () => {
         }
 
     }, [store.gridData])
+
+    // Apply folder filtering
+    useEffect(() => {
+        if (!folderFilter || folderFilter.length === 0) {
+            // No filter - show all items
+            setFilteredItems(items);
+            return;
+        }
+
+        const filtered = items.filter(item => {
+            const folderValue = item.folder.label;
+
+            // Handle "(Unassigned)" filter selection
+            if (folderFilter.includes('(Unassigned)')) {
+                if (!folderValue || folderValue === null || folderValue === '') {
+                    return true;
+                }
+            }
+
+            // Check if item's folder is in selected folders
+            if (folderValue && folderFilter.includes(folderValue)) {
+                return true;
+            }
+
+            return false;
+        });
+
+        setFilteredItems(filtered);
+    }, [items, folderFilter]);
 
     useEffect(() => {
         // For multiselect: only update selected grid row when exactly one row is selected
@@ -192,7 +227,7 @@ const ProcessQueueGrid: React.FC<GridComponentProps> = () => {
     } = useTableFeatures(
         {
             columns,
-            items,
+            items: filteredItems,
         },
         [
             useTableSelection({
@@ -245,17 +280,33 @@ const ProcessQueueGrid: React.FC<GridComponentProps> = () => {
     const RenderRow = ({ index, style, data }: ReactWindowRenderFnProps) => {
         const { item, selected, appearance, onClick, onKeyDown } = data[index];
         const deleteBtnStatus = isDeleteDisabled(item.processId.label, item.status.label);
+
+        // Handle row click - exclude clicks on interactive elements
+        const handleRowClick = (e: React.MouseEvent) => {
+            const target = e.target as HTMLElement;
+            // Don't toggle if clicking on checkbox, buttons, or menu items
+            const isInteractiveElement =
+                target.closest('[role="checkbox"]') ||
+                target.closest('button') ||
+                target.closest('[role="menuitem"]') ||
+                target.closest('[role="menu"]');
+
+            if (!isInteractiveElement && !e.defaultPrevented) {
+                onClick(e);
+            }
+        };
+
         return (
             <TableRow
                 aria-rowindex={index + 2}
                 style={style}
-                key={item.fileName.label}
+                key={item.processId.label}
                 onKeyDown={onKeyDown}
                 aria-selected={selected}
-                onClick={onClick}
+                onClick={handleRowClick}
                 appearance={appearance}
             >
-                <TableSelectionCell checked={selected} />
+                <TableSelectionCell checked={selected} aria-label={`Select ${item.fileName.label}`} />
                 <TableCell className="col col1">
                     <Tooltip content={item.fileName.label} relationship="label">
                         <TableCellLayout truncate media={item.fileName.icon}>
@@ -308,13 +359,26 @@ const ProcessQueueGrid: React.FC<GridComponentProps> = () => {
     });
 
     const handleDelete = async () => {
-        if (selectedDeleteItem) {
-            try {
-                toggleDialog();
-                await dispatch(deleteProcessedFile({ processId: selectedDeleteItem.processId.label ?? null }));
-            } catch (error: any) {
-                console.log("error : ", error)
-            }
+        if (!selectedDeleteItem) {
+            return;
+        }
+
+        try {
+            // Close dialog first
+            toggleDialog();
+
+            // Wait for delete operation to complete
+            const result = await dispatch(
+                deleteProcessedFile({ processId: selectedDeleteItem.processId.label ?? null })
+            ).unwrap();
+
+            // Success toast is handled in slice (line 272)
+            // Clear selection after successful delete
+            setSelectedDeleteItem(null);
+        } catch (error: any) {
+            // Error toast is handled in slice (line 282)
+            // Log error for debugging
+            console.error('[ProcessQueueGrid] Delete failed:', error);
         }
     };
 
@@ -333,14 +397,27 @@ const ProcessQueueGrid: React.FC<GridComponentProps> = () => {
             .filter((rowId): rowId is number => typeof rowId === 'number')
             .map(rowId => items[rowId].processId.label);
 
-        if (selectedProcessIds.length > 0) {
-            try {
-                toggleBulkDeleteDialog();
-                await dispatch(bulkDeleteProcessedFiles({ processIds: selectedProcessIds }));
-                setSelectedRows(new Set());
-            } catch (error: any) {
-                console.log("error : ", error)
-            }
+        if (selectedProcessIds.length === 0) {
+            return;
+        }
+
+        try {
+            // Close dialog first
+            toggleBulkDeleteDialog();
+
+            // Wait for bulk delete operation to complete
+            const result = await dispatch(
+                bulkDeleteProcessedFiles({ processIds: selectedProcessIds })
+            ).unwrap();
+
+            // Success/error toasts are handled in slice (lines 303, 307)
+            // Clear selection after operation
+            setSelectedRows(new Set());
+        } catch (error: any) {
+            // Error toast is handled in slice (line 317)
+            // Log error for debugging
+            console.error('[ProcessQueueGrid] Bulk delete failed:', error);
+            // Keep selection in case user wants to retry
         }
     };
 
@@ -421,7 +498,7 @@ const ProcessQueueGrid: React.FC<GridComponentProps> = () => {
                                 {({ height, width }) => (
                                     <List
                                         height={height}
-                                        itemCount={items.length}
+                                        itemCount={filteredItems.length}
                                         itemSize={45}
                                         width="100%"
                                         itemData={rows}

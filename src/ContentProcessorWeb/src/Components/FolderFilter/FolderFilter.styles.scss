@@ -1,0 +1,16 @@
+.folder-filter-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    width: 100%;
+
+    > div:first-child {
+        flex: 1;
+        min-width: 200px;
+    }
+
+    button {
+        flex-shrink: 0;
+    }
+}

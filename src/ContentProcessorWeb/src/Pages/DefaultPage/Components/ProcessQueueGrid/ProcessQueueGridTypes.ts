@@ -1,6 +1,24 @@
 import { TableRowId, TableRowData as RowStateBase, } from "@fluentui/react-components";
 import { ListChildComponentProps } from "react-window";
 
+export interface ProcessedFileResponse {
+    processed_file_name: string;
+    processed_file_mime_type: string;
+    imported_time: string;
+    status: string;
+    processed_time?: string;
+    entity_score: number;
+    schema_score: number;
+    process_id: string;
+    last_modified_by: string;
+    confidence?: {
+        totalFields: number;
+        zeroConfidenceCount: number;
+        zeroConfidenceFields: string[];
+    };
+    folder: string | null;
+}
+
 export interface Item {
     fileName: { label: string; icon: JSX.Element };
     imported: { label: string };

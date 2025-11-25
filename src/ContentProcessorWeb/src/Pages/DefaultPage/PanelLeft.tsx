@@ -4,6 +4,7 @@ import { ArrowClockwiseRegular, ArrowUploadRegular, ArrowDownloadRegular, Chevro
 import PanelToolbar from "../../Hooks/usePanelHooks.tsx";
 import ProcessQueueGrid from './Components/ProcessQueueGrid/ProcessQueueGrid.tsx';
 import SchemaDropdown from './Components/SchemaDropdown/SchemaDropdown';
+import FolderFilter from '../../Components/FolderFilter/FolderFilter';
 import UploadFilesModal from "../../Components/UploadContent/UploadFilesModal.tsx";
 
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
@@ -190,6 +191,7 @@ const PanelLeft: React.FC<PanelLeftProps> = ({ togglePanel }) => {
       </PanelToolbar>
       <div className="topContainer">
         <SchemaDropdown />
+        <FolderFilter schemaId={store.schemaSelectedOption?.Id} />
         <Button appearance="primary" icon={<ArrowUploadRegular />} onClick={handleImportContent}>
           Import Content
         </Button>
