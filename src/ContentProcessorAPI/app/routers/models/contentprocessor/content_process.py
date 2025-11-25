@@ -373,9 +373,9 @@ class ContentProcess(BaseModel):
                         zero_confidence_field_names.append(key)
 
             item["confidence"] = {
-                "total_evaluated_fields_count": total_fields,
-                "zero_confidence_fields_count": zero_confidence_fields,
-                "zero_confidence_fields": zero_confidence_field_names
+                "totalFields": total_fields,
+                "zeroConfidenceCount": zero_confidence_fields,
+                "zeroConfidenceFields": zero_confidence_field_names
             }
             # Remove extracted_result from response to keep it clean
             if "extracted_result" in item:
