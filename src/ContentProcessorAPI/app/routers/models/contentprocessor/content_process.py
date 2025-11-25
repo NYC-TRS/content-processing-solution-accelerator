@@ -351,14 +351,14 @@ class ContentProcess(BaseModel):
                 "schema_score",
                 "prompt_tokens",
                 "completion_tokens",
-                "extracted_result",
+                "result",
                 "folder",
             ],
         )
 
         # Calculate confidence for each item
         for item in items:
-            extracted_result = item.get("extracted_result", {})
+            extracted_result = item.get("result", {})
             total_fields = 0
             zero_confidence_fields = 0
             zero_confidence_field_names = []
@@ -385,9 +385,9 @@ class ContentProcess(BaseModel):
                 "zeroConfidenceCount": zero_confidence_fields,
                 "zeroConfidenceFields": zero_confidence_field_names
             }
-            # Remove extracted_result from response to keep it clean
-            if "extracted_result" in item:
-                del item["extracted_result"]
+            # Remove result from response to keep it clean
+            if "result" in item:
+                del item["result"]
 
         if items:
             return PaginatedResponse(
