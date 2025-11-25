@@ -352,39 +352,53 @@ class ContentProcess(BaseModel):
                 "prompt_tokens",
                 "completion_tokens",
                 "result",
+                "confidence",
                 "folder",
             ],
         )
 
-        # Calculate confidence for each item
+        # Process confidence data for each item
         for item in items:
-            extracted_result = item.get("result", {})
-            total_fields = 0
-            zero_confidence_fields = 0
-            zero_confidence_field_names = []
+            stored_confidence = item.get("confidence", {})
 
-            # Handle both dict and JSON string formats
-            if isinstance(extracted_result, str):
-                try:
-                    import json
-                    extracted_result = json.loads(extracted_result)
-                except Exception:
-                    extracted_result = {}
+            # Use stored confidence data if available (from processing pipeline)
+            if stored_confidence and isinstance(stored_confidence, dict):
+                # Map stored field names to frontend's expected camelCase format
+                item["confidence"] = {
+                    "totalFields": stored_confidence.get("total_evaluated_fields_count", 0),
+                    "zeroConfidenceCount": stored_confidence.get("zero_confidence_fields_count", 0),
+                    "zeroConfidenceFields": stored_confidence.get("zero_confidence_fields", [])
+                }
+            else:
+                # Fallback: Calculate confidence from result field for legacy data
+                # This handles items processed before confidence tracking was implemented
+                extracted_result = item.get("result", {})
+                total_fields = 0
+                zero_confidence_fields = 0
+                zero_confidence_field_names = []
 
-            if isinstance(extracted_result, dict):
-                for key, value in extracted_result.items():
-                    if key.startswith("_"):  # Skip internal fields
-                        continue
-                    total_fields += 1
-                    if value is None or value == "" or value == "NULL":
-                        zero_confidence_fields += 1
-                        zero_confidence_field_names.append(key)
+                # Handle both dict and JSON string formats
+                if isinstance(extracted_result, str):
+                    try:
+                        extracted_result = json.loads(extracted_result)
+                    except Exception:
+                        extracted_result = {}
 
-            item["confidence"] = {
-                "totalFields": total_fields,
-                "zeroConfidenceCount": zero_confidence_fields,
-                "zeroConfidenceFields": zero_confidence_field_names
-            }
+                if isinstance(extracted_result, dict):
+                    for key, value in extracted_result.items():
+                        if key.startswith("_"):  # Skip internal fields
+                            continue
+                        total_fields += 1
+                        if value is None or value == "" or value == "NULL":
+                            zero_confidence_fields += 1
+                            zero_confidence_field_names.append(key)
+
+                item["confidence"] = {
+                    "totalFields": total_fields,
+                    "zeroConfidenceCount": zero_confidence_fields,
+                    "zeroConfidenceFields": zero_confidence_field_names
+                }
+
             # Remove result from response to keep it clean
             if "result" in item:
                 del item["result"]
