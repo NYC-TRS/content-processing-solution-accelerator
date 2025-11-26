@@ -58,7 +58,7 @@ param gptDeploymentCapacity int = 100
 param secondaryLocation string = (location == 'eastus2') ? 'westus2' : 'eastus2'
 
 @description('Optional. The public container image endpoint.')
-param publicContainerImageEndpoint string = 'cpscontainerreg.azurecr.io'
+param publicContainerImageEndpoint string = 'crstg6fsvw.azurecr.io'
 
 @description('Optional. The image tag for the container images.')
 param imageTag string = 'latest'
@@ -709,7 +709,12 @@ module avmContainerApp 'br/public:avm/res/app/container-app:0.17.0' = {
     environmentResourceId: avmContainerAppEnv.outputs.resourceId
     workloadProfileName: 'Consumption'
     enableTelemetry: enableTelemetry
-    registries: null
+    registries: [
+      {
+        server: publicContainerImageEndpoint
+        identity: avmContainerRegistryReader.outputs.resourceId
+      }
+    ]
     managedIdentities: {
       systemAssigned: true
       userAssignedResourceIds: [
@@ -758,7 +763,12 @@ module avmContainerApp_API 'br/public:avm/res/app/container-app:0.17.0' = {
     environmentResourceId: avmContainerAppEnv.outputs.resourceId
     workloadProfileName: 'Consumption'
     enableTelemetry: enableTelemetry
-    registries: null
+    registries: [
+      {
+        server: publicContainerImageEndpoint
+        identity: avmContainerRegistryReader.outputs.resourceId
+      }
+    ]
     tags: tags
     managedIdentities: {
       systemAssigned: true
@@ -870,7 +880,12 @@ module avmContainerApp_Web 'br/public:avm/res/app/container-app:0.17.0' = {
     environmentResourceId: avmContainerAppEnv.outputs.resourceId
     workloadProfileName: 'Consumption'
     enableTelemetry: enableTelemetry
-    registries: null
+    registries: [
+      {
+        server: publicContainerImageEndpoint
+        identity: avmContainerRegistryReader.outputs.resourceId
+      }
+    ]
     tags: tags
     managedIdentities: {
       systemAssigned: true
@@ -911,7 +926,7 @@ module avmContainerApp_Web 'br/public:avm/res/app/container-app:0.17.0' = {
           }
           {
             name: 'APP_WEB_CLIENT_ID'
-            value: '<APP_REGISTRATION_CLIENTID>'
+            value: 'd3b3c2ae-7f21-4d63-a046-3c14154f18a1'
           }
           {
             name: 'APP_WEB_AUTHORITY'
@@ -919,11 +934,11 @@ module avmContainerApp_Web 'br/public:avm/res/app/container-app:0.17.0' = {
           }
           {
             name: 'APP_WEB_SCOPE'
-            value: '<FRONTEND_API_SCOPE>'
+            value: 'api://445cde4d-2ab0-4d53-9a41-900716241a95/user_impersonation'
           }
           {
             name: 'APP_API_SCOPE'
-            value: '<BACKEND_API_SCOPE>'
+            value: 'api://445cde4d-2ab0-4d53-9a41-900716241a95/user_impersonation'
           }
           {
             name: 'APP_CONSOLE_LOG_ENABLED'
@@ -1182,7 +1197,12 @@ module avmContainerApp_update 'br/public:avm/res/app/container-app:0.17.0' = {
     enableTelemetry: enableTelemetry
     environmentResourceId: avmContainerAppEnv.outputs.resourceId
     workloadProfileName: 'Consumption'
-    registries: null
+    registries: [
+      {
+        server: publicContainerImageEndpoint
+        identity: avmContainerRegistryReader.outputs.resourceId
+      }
+    ]
     tags: tags
     managedIdentities: {
       systemAssigned: true
@@ -1241,7 +1261,12 @@ module avmContainerApp_API_update 'br/public:avm/res/app/container-app:0.17.0' =
     enableTelemetry: enableTelemetry
     environmentResourceId: avmContainerAppEnv.outputs.resourceId
     workloadProfileName: 'Consumption'
-    registries: null
+    registries: [
+      {
+        server: publicContainerImageEndpoint
+        identity: avmContainerRegistryReader.outputs.resourceId
+      }
+    ]
     tags: tags
     managedIdentities: {
       systemAssigned: true

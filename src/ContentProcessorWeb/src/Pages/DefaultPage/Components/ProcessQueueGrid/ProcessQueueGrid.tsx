@@ -252,12 +252,24 @@ const ProcessQueueGrid: React.FC<GridComponentProps> = () => {
             ...row,
             onClick: (e: React.MouseEvent) => {
                 const target = e.target as HTMLElement;
-                // Only trigger selection if clicking on checkbox
                 const isCheckbox = target.closest('[role="checkbox"]');
+
                 if (isCheckbox && !e.defaultPrevented) {
+                    // Checkbox click - toggle selection for bulk operations
                     toggleRow(e, row.rowId);
+                } else {
+                    // Row click - show document in center panel (not for deletion)
+                    const isInteractiveElement =
+                        target.closest('button') ||
+                        target.closest('[role="menuitem"]') ||
+                        target.closest('[role="menu"]');
+
+                    if (!isInteractiveElement && !e.defaultPrevented) {
+                        const item = row.item;
+                        const findItem = getSelectedItem(item.processId.label);
+                        dispatch(setSelectedGridRow({ processId: item.processId.label, item: findItem }));
+                    }
                 }
-                // Otherwise row click is handled by handleRowClick for review
             },
             onKeyDown: (e: React.KeyboardEvent) => {
                 if (e.key === " " && !e.defaultPrevented) {
@@ -282,25 +294,8 @@ const ProcessQueueGrid: React.FC<GridComponentProps> = () => {
     };
 
     const RenderRow = ({ index, style, data }: ReactWindowRenderFnProps) => {
-        const { item, selected, appearance } = data[index];
+        const { item, selected, appearance, onClick } = data[index];
         const deleteBtnStatus = isDeleteDisabled(item.processId.label, item.status.label);
-
-        // Handle row click - set selected row for review (not for deletion)
-        const handleRowClick = (e: React.MouseEvent) => {
-            const target = e.target as HTMLElement;
-            // Don't handle clicks on checkbox, buttons, or menu items
-            const isInteractiveElement =
-                target.closest('[role="checkbox"]') ||
-                target.closest('button') ||
-                target.closest('[role="menuitem"]') ||
-                target.closest('[role="menu"]');
-
-            if (!isInteractiveElement && !e.defaultPrevented) {
-                // Set this row as selected for review purposes only
-                const findItem = getSelectedItem(item.processId.label);
-                dispatch(setSelectedGridRow({ processId: item.processId.label, item: findItem }));
-            }
-        };
 
         return (
             <TableRow
@@ -308,10 +303,14 @@ const ProcessQueueGrid: React.FC<GridComponentProps> = () => {
                 style={style}
                 key={item.processId.label}
                 aria-selected={selected}
-                onClick={handleRowClick}
+                onClick={onClick}
                 appearance={appearance}
             >
-                <TableSelectionCell checked={selected} aria-label={`Select ${item.fileName.label}`} />
+                <TableSelectionCell
+                    role="checkbox"
+                    checked={selected}
+                    aria-label={`Select ${item.fileName.label}`}
+                />
                 <TableCell className="col col1">
                     <Tooltip content={item.fileName.label} relationship="label">
                         <TableCellLayout truncate media={item.fileName.icon}>
