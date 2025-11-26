@@ -3,6 +3,7 @@
 
 import datetime
 import io
+import logging
 import urllib.parse
 import uuid
 
@@ -41,6 +42,8 @@ router = APIRouter(
     tags=["contentprocessor"],
     responses={404: {"description": "Not found"}},
 )
+
+logger = logging.getLogger(__name__)
 
 
 @router.post(
@@ -515,28 +518,35 @@ async def get_folders(
     schema_id: str | None = None,
     app_config: AppConfiguration = Depends(get_app_config),
 ):
-    mongo_helper = CosmosMongDBHelper(
-        connection_string=app_config.app_cosmos_connstr,
-        db_name=app_config.app_cosmos_database,
-        container_name=app_config.app_cosmos_container_process,
-        indexes=[("process_id", 1)],
-    )
+    try:
+        mongo_helper = CosmosMongDBHelper(
+            connection_string=app_config.app_cosmos_connstr,
+            db_name=app_config.app_cosmos_database,
+            container_name=app_config.app_cosmos_container_process,
+            indexes=[("process_id", 1)],
+        )
 
-    # Build query filter
-    query = {}
-    if schema_id:
-        query["target_schema.Id"] = schema_id
+        # Build query filter
+        query = {}
+        if schema_id:
+            query["target_schema.Id"] = schema_id
 
-    # Get distinct folder values
-    folders = mongo_helper.get_distinct_values("folder", query=query)
+        # Get distinct folder values
+        folders = mongo_helper.get_distinct_values("folder", query=query)
 
-    # Filter out None values and return
-    folders = [f for f in folders if f is not None]
+        # Filter out None values and return
+        folders = [f for f in folders if f is not None]
 
-    return JSONResponse(
-        status_code=200,
-        content={"folders": folders},
-    )
+        return JSONResponse(
+            status_code=200,
+            content={"folders": folders},
+        )
+    except Exception as e:
+        logger.error(f"Error retrieving folders: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Failed to retrieve folders", "details": str(e)},
+        )
 
 
 @router.put(
