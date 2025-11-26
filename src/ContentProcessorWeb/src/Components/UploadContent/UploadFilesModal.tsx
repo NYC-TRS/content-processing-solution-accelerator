@@ -9,12 +9,9 @@ import {
 import { Button } from "@fluentui/react-button";
 import { Field, ProgressBar, makeStyles, Combobox, Option } from "@fluentui/react-components";
 import { useDispatch, useSelector, shallowEqual } from "react-redux";
-import { fetchContentTableData, setRefreshGrid, uploadFile } from "../../store/slices/leftPanelSlice";
+import { fetchContentTableData, setRefreshGrid, uploadFile, fetchFolders } from "../../store/slices/leftPanelSlice";
 import { AppDispatch, RootState } from "../../store";
 import "./UploadFilesModal.styles.scss";
-
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL as string;
-
 import { CheckmarkCircle16Filled, DismissCircle16Filled } from "@fluentui/react-icons";
 
 import {
@@ -87,7 +84,8 @@ const UploadFilesModal: React.FC<UploadFilesModalProps> = ({ open, onClose }) =>
   const store = useSelector((state: RootState) => ({
     schemaSelectedOption: state.leftPanel.schemaSelectedOption,
     page_size: state.leftPanel.gridData.page_size,
-    pageSize: state.leftPanel.pageSize
+    pageSize: state.leftPanel.pageSize,
+    availableFolders: state.leftPanel.folderFilter.availableFolders
   }), shallowEqual);
 
   const isFileDuplicate = (newFile: File) => {
@@ -97,18 +95,14 @@ const UploadFilesModal: React.FC<UploadFilesModalProps> = ({ open, onClose }) =>
   // Fetch folders when modal opens and schema is selected
   useEffect(() => {
     if (open && store.schemaSelectedOption?.Id) {
-      const fetchFolders = async () => {
-        try {
-          const response = await fetch(`${API_BASE_URL}/contentprocessor/folders?schema_id=${store.schemaSelectedOption.Id}`);
-          const data = await response.json();
-          setFolders(data.folders || []);
-        } catch (error) {
-          console.error("Failed to fetch folders:", error);
-        }
-      };
-      fetchFolders();
+      dispatch(fetchFolders({ schemaId: store.schemaSelectedOption.Id }));
     }
-  }, [open, store.schemaSelectedOption]);
+  }, [open, store.schemaSelectedOption, dispatch]);
+
+  // Update local folders state when Redux state changes
+  useEffect(() => {
+    setFolders(store.availableFolders);
+  }, [store.availableFolders]);
 
 
   // Handle file selection

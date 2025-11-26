@@ -59,10 +59,10 @@ export const fetchFolders = createAsyncThunk<
             : '/contentprocessor/folders';
 
         return handleApiThunk(
-            httpUtility.get<{ folders: string[] }>(url).then(response => response.folders || []),
+            httpUtility.get<{ folders: string[] }>(url),
             rejectWithValue,
             'Failed to fetch folders'
-        );
+        ).then((data: any) => data?.folders || []);
     }
 );
 
