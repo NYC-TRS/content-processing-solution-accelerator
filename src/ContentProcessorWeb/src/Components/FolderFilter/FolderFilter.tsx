@@ -4,6 +4,7 @@ import { DismissRegular } from "@fluentui/react-icons";
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { RootState, AppDispatch } from '../../store';
 import { setFolderFilter, clearFolderFilter, fetchFolders } from '../../store/slices/leftPanelSlice';
+import useAuth from '../../msal-auth/useAuth';
 import './FolderFilter.styles.scss';
 
 interface FolderFilterProps {
@@ -12,6 +13,7 @@ interface FolderFilterProps {
 
 const FolderFilter: React.FC<FolderFilterProps> = ({ schemaId }) => {
   const dispatch = useDispatch<AppDispatch>();
+  const { token } = useAuth();
 
   const store = useSelector((state: RootState) => ({
     selectedFolders: state.leftPanel.folderFilter.selectedFolders,
@@ -21,10 +23,12 @@ const FolderFilter: React.FC<FolderFilterProps> = ({ schemaId }) => {
 
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
 
-  // Fetch folders when component mounts or schema changes
+  // Fetch folders only when token is available
   useEffect(() => {
-    dispatch(fetchFolders({ schemaId }));
-  }, [schemaId, dispatch]);
+    if (token) {
+      dispatch(fetchFolders({ schemaId }));
+    }
+  }, [schemaId, dispatch, token]);
 
   // Sync local state with Redux
   useEffect(() => {
