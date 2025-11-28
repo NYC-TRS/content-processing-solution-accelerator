@@ -38,8 +38,10 @@
 
 .filesList {
     .fiiles {
-        max-height: calc(100vh - 358px);
-        overflow: auto;
+        max-height: 400px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding-right: 8px;
     }
 
     .error {
