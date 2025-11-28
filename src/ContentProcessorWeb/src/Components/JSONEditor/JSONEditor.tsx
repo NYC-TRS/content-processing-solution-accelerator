@@ -6,7 +6,7 @@ import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { AppDispatch, RootState } from '../../store';
 import { fetchContentJsonData, setModifiedResult } from '../../store/slices/centerPanelSlice';
 
-import { SearchBox } from "@fluentui/react-components";
+import { SearchBox, Checkbox } from "@fluentui/react-components";
 
 interface JSONEditorProps {
   processId?: string | null;
@@ -18,6 +18,10 @@ const JSONEditor: React.FC<JSONEditorProps> = () => {
   const dispatch = useDispatch<AppDispatch>();
   const [searchText, setSearchText] = useState('');
   const searchBoxRef = React.useRef<HTMLDivElement | null>(null);
+  const [hideNulls, setHideNulls] = useState<boolean>(() => {
+    const saved = localStorage.getItem('jsonEditor_hideNulls');
+    return saved ? JSON.parse(saved) : false;
+  });
 
   const store = useSelector((state: RootState) => ({
     processId: state.leftPanel.processId,
@@ -27,21 +31,58 @@ const JSONEditor: React.FC<JSONEditorProps> = () => {
     isJSONEditorSearchEnabled: state.centerPanel.isJSONEditorSearchEnabled
   }), shallowEqual);
 
+  // Save hideNulls preference to localStorage
+  useEffect(() => {
+    localStorage.setItem('jsonEditor_hideNulls', JSON.stringify(hideNulls));
+  }, [hideNulls]);
+
+  // Recursively filter null, undefined, and empty string values from object
+  const filterNullValues = (obj: any): any => {
+    if (obj === null || obj === undefined || obj === '') {
+      return undefined;
+    }
+
+    if (Array.isArray(obj)) {
+      const filtered = obj.map(item => filterNullValues(item)).filter(item => item !== undefined);
+      return filtered.length > 0 ? filtered : undefined;
+    }
+
+    if (typeof obj === 'object') {
+      const filtered: any = {};
+      let hasValidFields = false;
+
+      for (const [key, value] of Object.entries(obj)) {
+        const filteredValue = filterNullValues(value);
+        if (filteredValue !== undefined) {
+          filtered[key] = filteredValue;
+          hasValidFields = true;
+        }
+      }
+
+      return hasValidFields ? filtered : undefined;
+    }
+
+    return obj;
+  };
 
   useEffect(() => {
     if (!store.cLoader) {
       if (Object.keys(store.contentData).length > 0) {
         const formattedJson = store.contentData.result;
-        const data = {
-          ...formattedJson
+        let data = { ...formattedJson };
+
+        // Apply null filtering if enabled
+        if (hideNulls) {
+          data = filterNullValues(data) || {};
         }
+
         setJsonData(data);
       } else {
         setJsonData({})
       }
     }
 
-  }, [store.contentData])
+  }, [store.contentData, hideNulls])
 
   const onUpdateHandle = (newData: any) => {
     dispatch(setModifiedResult(newData));
@@ -68,14 +109,19 @@ const JSONEditor: React.FC<JSONEditorProps> = () => {
           <div className="JSONEditor-container">
             {store.isJSONEditorSearchEnabled &&
               <div className="JSONEditor-searchDiv">
-                <div style={{ display: 'flex', justifyContent: 'flex-end' }} ref={searchBoxRef}>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px' }} ref={searchBoxRef}>
+                  <Checkbox
+                    label="Hide null values"
+                    checked={hideNulls}
+                    onChange={(_, data) => setHideNulls(data.checked === true)}
+                  />
                   <SearchBox
                     size="small"
                     placeholder="Search"
                     onFocus={handleFocus}
                     onBlur={handleBlur}
                     value={searchText}
-                    onChange={(e, data) => { setIsFocused(true); setSearchText(data.value) }}
+                    onChange={(_, data) => { setIsFocused(true); setSearchText(data.value) }}
                     style={{
                       width: isFocused ? '200px' : '100px',
                       transition: 'width 0.3s ease',
@@ -101,7 +147,7 @@ const JSONEditor: React.FC<JSONEditorProps> = () => {
                     },
                   }
                 }]}
-                onUpdate={({ newData, currentData, newValue, currentValue, name, path }) => {
+                onUpdate={({ newData }) => {
                   onUpdateHandle(newData)
                 }}
                 //setData={ setJsonData } // optional
