@@ -12,6 +12,6 @@
     {
         "File": "./retirement_allowance_verification.py",
         "ClassName": "RetirementAllowanceVerificationForm",
-        "Description": "TRS Retirement Allowance Verification Form"
+        "Description": "TRS Medical Verification"
     }
 ]
