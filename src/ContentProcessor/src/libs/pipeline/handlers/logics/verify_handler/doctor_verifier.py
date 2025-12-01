@@ -71,12 +71,20 @@ class DoctorCredentialVerifier:
                 if result.status == VerificationStatus.VERIFIED:
                     return result
 
-            # If no specific identifiers, mark as not found
+            # Try name + state verification if name and state provided (fallback when no NPI)
+            if doctor_name and state:
+                result = await self._verify_by_name_and_state(
+                    field_name, doctor_name, state, start_time
+                )
+                return result
+
+            # If no identifiers at all, mark as not found
             return VerificationResult(
                 field_name=field_name,
                 extracted_value=doctor_name or npi_number or license_number,
                 verification_type=VerificationType.DOCTOR,
                 status=VerificationStatus.NOT_FOUND,
+                error_message="No verifiable identifiers provided (need NPI, or name+state, or license+state)",
                 timestamp=time.strftime("%Y-%m-%dT%H:%M:%SZ"),
                 api_response_time=(time.time() - start_time) * 1000
             )
@@ -100,6 +108,142 @@ class DoctorCredentialVerifier:
                 error_message=str(e),
                 timestamp=time.strftime("%Y-%m-%dT%H:%M:%SZ"),
                 api_response_time=(time.time() - start_time) * 1000
+            )
+
+    async def _verify_by_name_and_state(
+        self,
+        field_name: str,
+        doctor_name: str,
+        state: str,
+        start_time: float
+    ) -> VerificationResult:
+        """Verify using physician name and state (when NPI not available)"""
+
+        # Parse name into first and last
+        name_parts = doctor_name.replace("Dr.", "").replace("Dr", "").strip().split()
+        if len(name_parts) < 2:
+            return VerificationResult(
+                field_name=field_name,
+                extracted_value=doctor_name,
+                verification_type=VerificationType.DOCTOR,
+                status=VerificationStatus.ERROR,
+                error_message="Unable to parse first and last name",
+                timestamp=time.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                api_response_time=(time.time() - start_time) * 1000
+            )
+
+        first_name = name_parts[0]
+        last_name = name_parts[-1]  # Handle middle names/initials
+
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            response = await client.get(
+                self.npi_api_endpoint,
+                params={
+                    "first_name": first_name,
+                    "last_name": last_name,
+                    "state": state,
+                    "version": "2.1",
+                    "limit": 10  # Get multiple results for matching
+                },
+                headers={"Accept": "application/json"}
+            )
+
+            api_time = (time.time() - start_time) * 1000
+
+            if response.status_code == 200:
+                data = response.json()
+                result_count = data.get("result_count", 0)
+
+                if result_count == 0:
+                    return VerificationResult(
+                        field_name=field_name,
+                        extracted_value=doctor_name,
+                        verification_type=VerificationType.DOCTOR,
+                        status=VerificationStatus.NOT_FOUND,
+                        error_message=f"No providers found with name '{doctor_name}' in state {state}",
+                        timestamp=time.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                        api_response_time=api_time
+                    )
+
+                # Find exact match (prefer active providers)
+                active_matches = []
+                all_matches = []
+
+                for result in data.get("results", []):
+                    basic = result.get("basic", {})
+                    result_first = basic.get("first_name", "").lower()
+                    result_last = basic.get("last_name", "").lower()
+
+                    # Check if names match
+                    if result_first == first_name.lower() and result_last == last_name.lower():
+                        if basic.get("status") == "A":
+                            active_matches.append(result)
+                        all_matches.append(result)
+
+                # Prefer active matches
+                matches = active_matches if active_matches else all_matches
+
+                if len(matches) == 1:
+                    # Single exact match - high confidence
+                    result = matches[0]
+                    basic = result.get("basic", {})
+
+                    details = {
+                        "npi": result.get("number"),
+                        "name": f"{basic.get('first_name', '')} {basic.get('last_name', '')}".strip(),
+                        "credential": basic.get("credential"),
+                        "status": "Active" if basic.get("status") == "A" else "Inactive",
+                        "state": state,
+                        "verification_method": "name_and_state"
+                    }
+
+                    # Add taxonomy (specialty) if available
+                    if result.get("taxonomies"):
+                        details["specialty"] = result["taxonomies"][0].get("desc")
+
+                    return VerificationResult(
+                        field_name=field_name,
+                        extracted_value=doctor_name,
+                        verification_type=VerificationType.DOCTOR,
+                        status=VerificationStatus.VERIFIED,
+                        details=details,
+                        timestamp=time.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                        api_response_time=api_time
+                    )
+
+                elif len(matches) > 1:
+                    # Multiple exact matches - ambiguous
+                    return VerificationResult(
+                        field_name=field_name,
+                        extracted_value=doctor_name,
+                        verification_type=VerificationType.DOCTOR,
+                        status=VerificationStatus.INVALID,
+                        error_message=f"Multiple providers found with name '{doctor_name}' in {state}. Cannot verify without NPI or license number.",
+                        details={"match_count": len(matches)},
+                        timestamp=time.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                        api_response_time=api_time
+                    )
+
+                else:
+                    # No exact matches, but found similar names
+                    return VerificationResult(
+                        field_name=field_name,
+                        extracted_value=doctor_name,
+                        verification_type=VerificationType.DOCTOR,
+                        status=VerificationStatus.NOT_FOUND,
+                        error_message=f"Found {result_count} providers with similar names in {state}, but no exact match for '{doctor_name}'",
+                        timestamp=time.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                        api_response_time=api_time
+                    )
+
+            return VerificationResult(
+                field_name=field_name,
+                extracted_value=doctor_name,
+                verification_type=VerificationType.DOCTOR,
+                status=VerificationStatus.ERROR,
+                error_message=f"API error: {response.status_code}",
+                timestamp=time.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                api_response_time=api_time
             )
 
     async def _verify_by_npi(
