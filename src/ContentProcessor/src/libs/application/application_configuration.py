@@ -51,6 +51,14 @@ class AppConfiguration(ModelBaseSettings):
     app_cosmos_container_process: str
     app_cosmos_container_schema: str
 
+    # Verification configuration (optional, with defaults)
+    app_doctor_npi_api_endpoint: str = "https://npiregistry.cms.hhs.gov/api/"
+    app_doctor_license_api_endpoint: str = ""
+    app_doctor_api_key: str = ""
+    app_verify_confidence_threshold: float = 0.70
+    app_verify_timeout: int = 30
+    app_verify_enabled: bool = False  # Disabled by default for safety
+
     @field_validator("app_process_steps", mode="before")
     @classmethod
     def split_processes(cls, v: str) -> list[str]:

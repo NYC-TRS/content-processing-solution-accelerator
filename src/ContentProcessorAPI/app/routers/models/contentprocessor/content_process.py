@@ -18,6 +18,12 @@ class ExtractionComparisonItem(BaseModel):
     Confidence: Optional[str]
     IsAboveThreshold: Optional[bool]
 
+    # Verification fields (optional for backward compatibility)
+    VerificationStatus: Optional[str] = None
+    VerificationDetails: Optional[dict] = None
+    VerifiedAt: Optional[str] = None
+    VerificationResponseTime: Optional[float] = None
+
     def to_dict(self) -> dict:
         return self.model_dump()
 
@@ -74,6 +80,9 @@ class ContentProcess(BaseModel):
 
     process_output: list[Step_Outputs] = []
     extracted_comparison_data: Optional[ExtractionComparisonData] = None
+
+    # Verification metadata (optional for backward compatibility)
+    verification_metadata: Optional[dict] = None
 
     comment: Optional[str] = None
     folder: Optional[str] = None

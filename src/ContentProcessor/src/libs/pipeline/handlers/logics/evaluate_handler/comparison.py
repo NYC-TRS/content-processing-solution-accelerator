@@ -1,4 +1,5 @@
 from typing import Any, List, Optional
+from datetime import datetime
 
 import pandas as pd
 from pydantic import BaseModel
@@ -11,6 +12,12 @@ class ExtractionComparisonItem(BaseModel):
     Extracted: Optional[Any]
     Confidence: Optional[str]
     IsAboveThreshold: Optional[bool]
+
+    # Verification fields (optional for backward compatibility)
+    VerificationStatus: Optional[str] = None
+    VerificationDetails: Optional[dict] = None
+    VerifiedAt: Optional[str] = None
+    VerificationResponseTime: Optional[float] = None
 
     def to_dict(self) -> dict:
         return self.model_dump()
