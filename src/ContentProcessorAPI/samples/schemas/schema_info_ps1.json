@@ -10,8 +10,8 @@
         "Description": "Property Loss Damage Claim Form"
     },
     {
-        "File": "retirement_allowance_verification.py",
-        "ClassName": "RetirementAllowanceVerificationForm",
-        "Description": "TRS Medical Verification"
+        "File": "pension_verification.py",
+        "ClassName": "PensionVerification",
+        "Description": "TRS Retirement Allowance Verification (RP68)"
     }
 ]

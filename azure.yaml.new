@@ -1,0 +1,40 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+name: content-processing
+
+requiredVersions:
+  azd: '>= 1.18.0'
+
+metadata:
+  template: content-processing@1.0
+  name: content-processinge@1.0
+
+hooks:
+  # Predeploy hook: Build and push container images before deployment
+  # This ensures azd up always deploys the latest source code
+  predeploy:
+    posix:
+      shell: sh
+      run: |
+        echo "Building container images from source code..."
+        chmod +x ./infra/scripts/build_images.sh
+        ./infra/scripts/build_images.sh
+      continueOnError: false
+      interactive: false
+    windows:
+      shell: pwsh
+      run: |
+        Write-Host "Building container images from source code..." -ForegroundColor Cyan
+        ./infra/scripts/build_images.ps1
+      continueOnError: false
+      interactive: false
+
+  # Postprovision hook: Run setup scripts after infrastructure is provisioned
+  postprovision:
+    posix:
+      shell: sh
+      run: sed -i 's/\r$//' ./infra/scripts/post_deployment.sh; bash ./infra/scripts/post_deployment.sh
+      interactive: true
+    windows:
+      shell: pwsh
+      run: ./infra/scripts/post_deployment.ps1
+      interactive: true

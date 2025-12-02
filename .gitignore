@@ -14,3 +14,6 @@ wheels/
 *.exe
 *.msi
 *.log
+.claude
+notes.md
+updates.md
